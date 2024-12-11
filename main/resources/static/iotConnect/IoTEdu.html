@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<meta charset="UTF-8">
+<head>
+    <title>IoT Connection</title>
+</head>
+<style>
+    #messageBox {
+      width: 100%;
+      height: 200px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      overflow-y: scroll; /* 스크롤바 생성 */
+      white-space: pre-wrap; /* 줄 바꿈을 유지하여 멀티 라인 지원 */
+    }
+</style>
+<body>
+    <h1>IoT Gathering 실습</h1>
+    <span>서버 호스트 : </span>
+    <input type="text" id="wshost" placeholder="Enter Server IP Address">
+    <br>
+    <br>
+    <button id="btnConnect" onclick="connect()">접속</button>
+    <button id="btnDisconnect" disabled onclick="disconnect()">접속해제</button>
+    <button id="btnDelLog" onclick="refeshLog()">로그삭제</button>
+    <br>
+    <br>
+    <div id="messageBox"></div>
+    <br>
+    <span>아두이노 DVC ID : </span>
+    <input type="text" id="arduinoDvcId" disabled placeholder="Enter Arduino DVC ID">
+    <br>
+    <button id="btnGatherData" disabled onclick="sendCon()">받기</button>
+    <button id="btnStopGatherData" disabled onclick="sendDisCon()">취소</button>
+    <script>
+        var webSocket;
+
+        function connect() {
+            var wsHost = document.getElementById('wshost').value;
+            wsHost = wsHost == '' ? '192.168.117.92' : wsHost;
+            var wsConnect = 'ws://' + wsHost + ':8080/gathering';
+            webSocket = new WebSocket(wsConnect);
+
+            webSocket.onopen = function(event) {
+                console.log('Connected');
+                var wsHost = document.getElementById('wshost');
+                var btnConnect = document.getElementById('btnConnect');
+                var btnDisconnect = document.getElementById('btnDisconnect');
+                var arduinoDvcId = document.getElementById('arduinoDvcId');
+                var btnGatherData = document.getElementById('btnGatherData');
+                var btnStopGatherData = document.getElementById('btnStopGatherData');
+
+                wsHost.disabled = true;
+                btnConnect.disabled = true;
+                btnDisconnect.disabled = false;
+                arduinoDvcId.disabled = false;
+                btnGatherData.disabled = false;
+                btnStopGatherData.disabled = true;
+            };
+
+            webSocket.onmessage = function(event) {
+                console.log('Received: ' + event.data);
+                var revMsg = event.data;
+                revMsg = revMsg.replaceAll("'", '"');
+                revMsg = revMsg.replaceAll(".", '""');
+                revMsg = JSON.parse(revMsg);
+                switch (revMsg.TYPE) {
+                    case 'CON' :
+                        var btnConArduino = document.getElementById('btnStopGatherData');
+                        var btnDisconnect = document.getElementById('btnDisconnect');
+                        var arduinoDvcId = document.getElementById('arduinoDvcId');
+                        var btnGatherData = document.getElementById('btnGatherData');
+                        if (revMsg.COMMENT == 'CS') {
+                            btnDisconnect.disabled = true;
+                            arduinoDvcId.disabled = true;
+                            btnGatherData.disabled = true;
+                            btnStopGatherData.disabled = false;
+                        } else if (revMsg.COMMENT == 'CE') {
+                            alert('아두이노 연결에 실패하였습니다.');
+                        } else if (revMsg.COMMENT == 'DS') {
+                            btnDisconnect.disabled = false;
+                            arduinoDvcId.disabled = false;
+                            btnGatherData.disabled = false;
+                            btnStopGatherData.disabled = true;
+                        } else if (revMsg.COMMENT == 'DE') {
+                            alert('아두이노 연결해제에 실패하였습니다.');
+                        } else if (revMsg.COMMENT == 'EE') {
+                            alert('서버 에러입니다.');
+                        }
+                        break;
+                    case 'SNSR' :
+                        const messageBox = document.getElementById('messageBox');
+                        if (revMsg.COMMENT == ".") {
+                            return;
+                        }
+                        var snsrVal = revMsg.COMMENT.DATA;
+                        var displayMsg = "DETCT : " + snsrVal.DETCT + " / TEMP : " + snsrVal.TEMP + " °C / HUM : " + snsrVal.HUM + " % ";
+
+                        messageBox.innerText += displayMsg + '\n';
+                        break;
+                }
+            };
+
+            webSocket.onclose = function(event) {
+                console.log('Disconnected');
+                var wsHost = document.getElementById('wshost');
+                var btnConnect = document.getElementById('btnConnect');
+                var btnDisconnect = document.getElementById('btnDisconnect');
+                var arduinoDvcId = document.getElementById('arduinoDvcId');
+                var btnGatherData = document.getElementById('btnGatherData');
+                var btnStopGatherData = document.getElementById('btnStopGatherData');
+
+                wsHost.disabled = false;
+                btnConnect.disabled = false;
+                btnDisconnect.disabled = true;
+                arduinoDvcId.disabled = true;
+                btnGatherData.disabled = true;
+                btnStopGatherData.disabled = true;
+            };
+        }
+
+        function disconnect() {
+            if (webSocket) {
+                webSocket.close();
+            }
+        }
+
+        function sendCon() {
+            var dvcId = document.getElementById('arduinoDvcId').value;
+
+            if (dvcId == "") {
+                alert("DVC ID를 입력해주세요");
+                return;
+            }
+
+            var gatheringData = { "TYPE" : "CON", "DVC_ID" : dvcId };
+
+            if (webSocket && webSocket.readyState === WebSocket.OPEN) {
+                webSocket.send(JSON.stringify(gatheringData));
+            }
+        }
+
+        function sendDisCon() {
+            var dvcId = document.getElementById('arduinoDvcId').value;
+
+            if (dvcId == "") {
+                alert("DVC ID를 입력해주세요");
+                return;
+            }
+
+            var stopGathering = { "TYPE" : "DIS", "DVC_ID" : dvcId };
+            if (webSocket && webSocket.readyState === WebSocket.OPEN) {
+                webSocket.send(JSON.stringify(stopGathering));
+            }
+        }
+
+        function refeshLog() {
+            const messageBox = document.getElementById('messageBox');
+            messageBox.innerText = "";
+        }
+    </script>
+</body>
+</html>

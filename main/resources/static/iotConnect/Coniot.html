@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<meta charset="UTF-8">
+<head>
+    <title>IoT Connection</title>
+</head>
+<style>
+    #messageBox {
+      width: 100%;
+      height: 200px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      overflow-y: scroll; /* 스크롤바 생성 */
+      white-space: pre-wrap; /* 줄 바꿈을 유지하여 멀티 라인 지원 */
+    }
+</style>
+<body>
+    <h1>IoT Gathering 실습</h1>
+    <span>서버 호스트 : </span>
+    <input type="text" id="wshost" placeholder="Enter Server IP Address">
+    <br>
+    <br>
+    <button id="btnConnect" onclick="connect()">접속</button>
+    <button id="btnDisconnect" disabled onclick="disconnect()">접속해제</button>
+    <button id="btnDelLog" onclick="refeshLog()">로그삭제</button>
+    <br>
+    <br>
+    <div id="messageBox"></div>
+    <br>
+    <span>아두이노 IP : </span>
+    <input type="text" id="arduinoHost" disabled placeholder="Enter Arduino IP Address">
+    <br>
+    <span>아두이노 PORT : </span>
+    <input type="text" id="arduinoPort" disabled placeholder="Enter Port">
+    <br>
+    <button id="btnConArduino" disabled onclick="sendCon()">연결</button>
+    <button id="btnDisconArduino" disabled onclick="sendDisCon()">연결해제</button>
+    <script>
+        var webSocket;
+
+        function connect() {
+            var wsHost = document.getElementById('wshost').value;
+            wsHost = wsHost == '' ? '192.168.117.92' : wsHost;
+            var wsConnect = 'ws://' + wsHost + ':8080/ws';
+            webSocket = new WebSocket(wsConnect);
+
+            webSocket.onopen = function(event) {
+                console.log('Connected');
+                var wsHost = document.getElementById('wshost');
+                var btnConnect = document.getElementById('btnConnect');
+                var btnDisconnect = document.getElementById('btnDisconnect');
+                var arduinoHost = document.getElementById('arduinoHost');
+                var arduinoPort = document.getElementById('arduinoPort');
+                var btnConArduino = document.getElementById('btnConArduino');
+
+                wsHost.disabled = true;
+                btnConnect.disabled = true;
+                btnDisconnect.disabled = false;
+                arduinoHost.disabled = false;
+                arduinoPort.disabled = false;
+                btnConArduino.disabled = false;
+            };
+
+            webSocket.onmessage = function(event) {
+                console.log('Received: ' + event.data);
+                var revMsg = event.data;
+                revMsg = revMsg.replaceAll("'", '"');
+                revMsg = revMsg.replaceAll(".", '""');
+                revMsg = JSON.parse(revMsg);
+                switch (revMsg.TYPE) {
+                    case 'CON' :
+                        var btnConArduino = document.getElementById('btnConArduino');
+                        var btnDisconArduino = document.getElementById('btnDisconArduino');
+                        var btnDisconnect = document.getElementById('btnDisconnect');
+                        var arduinoHost = document.getElementById('arduinoHost');
+                        var arduinoPort = document.getElementById('arduinoPort');
+                        if (revMsg.COMMENT == 'CS') {
+                            btnConArduino.disabled = true;
+                            btnDisconArduino.disabled = false;
+                            arduinoHost.disabled = true;
+                            arduinoPort.disabled = true;
+                            btnDisconnect.disabled = true;
+                        } else if (revMsg.COMMENT == 'CE') {
+                            alert('아두이노 연결에 실패하였습니다.');
+                        } else if (revMsg.COMMENT == 'DS') {
+                            btnConArduino.disabled = false;
+                            btnDisconArduino.disabled = true;
+                            arduinoHost.disabled = false;
+                            arduinoPort.disabled = false;
+                            btnDisconnect.disabled = false;
+                        } else if (revMsg.COMMENT == 'DE') {
+                            alert('아두이노 연결해제에 실패하였습니다.');
+                        } else if (revMsg.COMMENT == 'EE') {
+                            alert('서버 에러입니다.');
+                        }
+                        break;
+                    case 'SNSR' :
+                        const messageBox = document.getElementById('messageBox');
+                        if (revMsg.COMMENT == ".") {
+                            return;
+                        }
+                        var snsrVal = revMsg.COMMENT.TH;
+                        var displayMsg = "TEMP : " + snsrVal.TEMP + " °C / HUM : " + snsrVal.HUM + " % ";
+
+                        messageBox.innerText += displayMsg + '\n';
+                        break;
+                }
+            };
+
+            webSocket.onclose = function(event) {
+                console.log('Disconnected');
+                var wsHost = document.getElementById('wshost');
+                var btnConnect = document.getElementById('btnConnect');
+                var btnDisconnect = document.getElementById('btnDisconnect');
+                var arduinoHost = document.getElementById('arduinoHost');
+                var arduinoPort = document.getElementById('arduinoPort');
+                var btnConArduino = document.getElementById('btnConArduino');
+
+                wsHost.disabled = false;
+                btnConnect.disabled = false;
+                btnDisconnect.disabled = true;
+                arduinoHost.disabled = true;
+                arduinoPort.disabled = true;
+                btnConArduino.disabled = true;
+            };
+        }
+
+        function disconnect() {
+            if (webSocket) {
+                webSocket.close();
+            }
+        }
+
+        function sendCon() {
+            var ip = document.getElementById('arduinoHost').value;
+            var port = document.getElementById('arduinoPort').value;
+
+            if (ip == "" || port == "") {
+                alert("IP, Port를 모두 입력해주십시오.");
+                return;
+            }
+
+            var arduinoConnect = { "TYPE" : "CON", "IP" : ip, "PORT" : port };
+
+            if (webSocket && webSocket.readyState === WebSocket.OPEN) {
+                webSocket.send(JSON.stringify(arduinoConnect));
+            }
+        }
+
+        function sendDisCon() {
+            var ip = document.getElementById('arduinoHost').value;
+            var port = document.getElementById('arduinoPort').value;
+
+            if (ip == "" || port == "") {
+                alert("IP, Port를 모두 입력해주십시오.");
+                return;
+            }
+
+            var arduinoConnect = { "TYPE" : "DIS", "IP" : ip, "PORT" : port };
+            if (webSocket && webSocket.readyState === WebSocket.OPEN) {
+                webSocket.send(JSON.stringify(arduinoConnect));
+            }
+        }
+
+        function refeshLog() {
+            const messageBox = document.getElementById('messageBox');
+            messageBox.innerText = "";
+        }
+    </script>
+</body>
+</html>

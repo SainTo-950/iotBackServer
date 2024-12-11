@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ioteducation.iotedu.web.iotDashboard.IoTDataCheckDAO">
+    <insert id="insertGatheringData">
+        INSERT INTO iot.tb_gathering_data(date, time, dvc_id, detct, temp, hum, timestamp)
+        VALUES(to_char(now(), 'YYYYMMDD'), to_char(now(), 'HH24MISS'), #{dvc_id}, #{detct}, #{temp}, #{hum}, CURRENT_TIMESTAMP)
+    </insert>
+
+    <select id="getLastData" parameterType="java.util.Map" resultType="java.util.Map">
+        SELECT *
+          FROM iot.tb_gathering_data
+          WHERE dvc_id = #{dvc_id}
+        ORDER BY date DESC, time DESC
+        LIMIT 1
+    </select>
+</mapper>
