@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MQTT Client</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    input, button {
+      margin: 5px 0;
+      padding: 10px;
+      font-size: 16px;
+    }
+    #messages {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      min-height: 100px;
+      width: 100%;
+      background: #f9f9f9;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>MQTT Web Client</h1>
+
+  <div>
+    <label for="ip">Server IP:</label>
+    <input type="text" id="ip" placeholder="Enter Server IP (e.g., 192.168.0.80)" />
+
+    <label for="port">Port:</label>
+    <input type="text" id="port" placeholder="Enter Port (e.g., 9091)" />
+
+    <label for="topic">Topic:</label>
+    <input type="text" id="topic" placeholder="Enter Topic (e.g., test/topic)" />
+
+    <button id="connectBtn">Connect & Subscribe</button>
+  </div>
+
+  <h2>Subscribed Messages:</h2>
+  <div id="messages">Waiting for messages...</div>
+
+  <script>
+    // 전역 변수 선언
+    let client = null;
+
+    document.getElementById('connectBtn').addEventListener('click', function () {
+      const ip = document.getElementById('ip').value;
+      const port = document.getElementById('port').value;
+      const topic = document.getElementById('topic').value;
+
+      if (!ip || !port || !topic) {
+        alert('Please fill in all fields: IP, Port, and Topic.');
+        return;
+      }
+
+      // MQTT Broker WebSocket URL 생성
+      const brokerUrl = `ws://${ip}:${port}/mqtt`;
+
+      // MQTT 클라이언트 연결
+      client = mqtt.connect(brokerUrl);
+
+      client.on('connect', () => {
+        console.log('Connected to MQTT Broker:', brokerUrl);
+        alert(`Connected to Broker at ${brokerUrl}`);
+
+        // 토픽 구독
+        client.subscribe(topic, (err) => {
+          if (err) {
+            console.error('Subscription error:', err);
+            alert('Failed to subscribe to topic.');
+          } else {
+            console.log(`Subscribed to topic: ${topic}`);
+            alert(`Subscribed to topic: ${topic}`);
+          }
+        });
+      });
+
+      // 메시지 수신 이벤트
+      client.on('message', (topic, message) => {
+        console.log(`Message received on topic "${topic}":`, message.toString());
+
+        // 메시지를 화면에 표시
+        const messagesDiv = document.getElementById('messages');
+        const newMessage = document.createElement('p');
+        newMessage.textContent = `Topic: ${topic}, Message: ${message.toString()}`;
+        messagesDiv.appendChild(newMessage);
+
+        // 자동 스크롤
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      });
+
+      // 연결 에러 처리
+      client.on('error', (err) => {
+        console.error('Connection error:', err);
+        alert('Connection error. Please check the IP, port, and broker configuration.');
+      });
+
+      // 연결 해제 처리
+      client.on('close', () => {
+        console.log('Disconnected from Broker');
+        alert('Disconnected from MQTT Broker.');
+      });
+    });
+  </script>
+</body>
+</html>

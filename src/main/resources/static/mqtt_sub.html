@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MQTT Data Viewer</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    #data {
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      width: 50%;
+    }
+  </style>
+</head>
+<body>
+  <h1>MQTT Data Viewer</h1>
+  <p>Received Data:</p>
+  <div id="data">Waiting for data...</div>
+
+  <script>
+    // 1. MQTT 브로커에 연결
+    const brokerUrl = 'ws://192.168.0.80:9091/mqtt'; // MQTT 브로커 주소 (예: Mosquitto public broker)
+    const client = mqtt.connect(brokerUrl);
+
+    // 2. 연결 성공 이벤트
+    client.on('connect', () => {
+      console.log('Connected to MQTT Broker');
+
+      // 3. 토픽 구독
+      const topic = 'test/ArduiNoTopic'; // 원하는 토픽 이름
+      client.subscribe(topic, (err) => {
+        if (!err) {
+          console.log(`Subscribed to topic: ${topic}`);
+        } else {
+          console.error('Subscription error:', err);
+        }
+      });
+    });
+
+    // 4. 메시지 수신
+    client.on('message', (topic, message) => {
+      console.log(`Received message from ${topic}: ${message.toString()}`);
+
+      // 5. HTML 업데이트
+      const dataDiv = document.getElementById('data');
+      dataDiv.textContent = `Topic: ${topic}, Message: ${message.toString()}`;
+    });
+
+    // 연결 오류 이벤트
+    client.on('error', (err) => {
+      console.error('Connection error:', err);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DB Table Search</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    button {
+      margin: 10px 0;
+      padding: 10px 15px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    select {
+      width: 300px;
+      height: 150px;
+      margin: 10px 0;
+      font-size: 16px;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>DB Table Search</h1>
+  <div class="container">
+    <!-- 조회 버튼 -->
+    <button id="fetchTablesBtn">조회</button>
+
+    <!-- Table 목록을 담는 List box -->
+    <select id="tableListBox" size="10"></select>
+
+    <!-- Column 목록을 담는 List box -->
+    <select id="columnListBox" size="10"></select>
+
+    <!-- 데이터 조회 버튼 -->
+    <button id="fetchDataBtn">데이터 조회</button>
+
+    <!-- 데이터를 보여줄 영역 -->
+    <div id="dataDisplay"></div>
+  </div>
+
+  <script>
+    // const API_BASE_URL = "http://localhost:8080/api"; // API Base URL (백엔드 경로)
+    const API_BASE_URL = "http://localhost:8080"; // API Base URL (백엔드 경로)
+
+    // 조회 버튼 클릭 시 테이블 목록 가져오기
+    document.getElementById("fetchTablesBtn").addEventListener("click", async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/getDBTableList`);
+        const tables = await response.json();
+
+        const tableListBox = document.getElementById("tableListBox");
+        tableListBox.innerHTML = ""; // 기존 옵션 초기화
+
+        // 응답 데이터를 List box에 추가
+        tables.forEach((table) => {
+          const option = document.createElement("option");
+          option.value = table.table_name;
+          option.textContent = table.table_name;
+          tableListBox.appendChild(option);
+        });
+      } catch (error) {
+        console.error("Error fetching tables:", error);
+      }
+    });
+
+    // 특정 Table name 클릭 시 Column 정보 가져오기
+    document.getElementById("tableListBox").addEventListener("change", async (event) => {
+      const selectedTable = event.target.value;
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/getDBTableColumns?table=${selectedTable}`);
+        const columns = await response.json();
+
+        const columnListBox = document.getElementById("columnListBox");
+        columnListBox.innerHTML = ""; // 기존 옵션 초기화
+
+        // 응답 데이터를 Column List box에 추가
+        columns.forEach((column) => {
+          const option = document.createElement("option");
+
+          // column 정보를 보기 쉽게 표시
+          const isNullable = column.is_nullable === "YES" ? "Nullable" : "Not Nullable";
+          const displayText = `${column.column_name} (${column.data_type}, ${isNullable})`;
+
+          option.value = column.column_name;
+          option.textContent = displayText; // 표시할 텍스트
+          columnListBox.appendChild(option);
+        });
+      } catch (error) {
+        console.error("Error fetching columns:", error);
+      }
+    });
+
+    // 데이터 조회 버튼 클릭 시 데이터 가져오기
+    document.getElementById("fetchDataBtn").addEventListener("click", async () => {
+      const tableListBox = document.getElementById("tableListBox");
+      const selectedTable = tableListBox.value;
+
+      if (!selectedTable) {
+        alert("Please select a table.");
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/getDBTableData?table=${selectedTable}`);
+        const data = await response.json();
+
+        const dataDisplay = document.getElementById("dataDisplay");
+        dataDisplay.innerHTML = ""; // 기존 데이터 초기화
+
+        // 데이터를 HTML 테이블 형식으로 표시
+        if (data.length > 0) {
+          const table = document.createElement("table");
+          table.border = 1;
+
+          // 테이블 헤더 생성
+          const thead = document.createElement("thead");
+          const headerRow = document.createElement("tr");
+
+          Object.keys(data[0]).forEach((key) => {
+            const th = document.createElement("th");
+            th.textContent = key;
+            headerRow.appendChild(th);
+          });
+
+          thead.appendChild(headerRow);
+          table.appendChild(thead);
+
+          // 테이블 데이터 생성
+          const tbody = document.createElement("tbody");
+
+          data.forEach((row) => {
+            const tr = document.createElement("tr");
+
+            Object.values(row).forEach((value) => {
+              const td = document.createElement("td");
+              td.textContent = value;
+              tr.appendChild(td);
+            });
+
+            tbody.appendChild(tr);
+          });
+
+          table.appendChild(tbody);
+          dataDisplay.appendChild(table);
+        } else {
+          dataDisplay.textContent = "No data available.";
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    });
+  </script>
+</body>
+</html>
